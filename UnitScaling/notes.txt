@@ -48,6 +48,7 @@ python data/openwebtext/prepare.py
 #set nproc_per_node to 4 as I am using 4 gpus - check using rocm-smi
 time torchrun --standalone --nproc_per_node=4 train.py config/train_gpt2.py --compile=False --dtype=float16 | tee -a "gpt2_output_log.txt"
 #Did change the config to have wandb turned off and for it to use 4 gpus
+#The changed config is in the UnitScaling directory
 
 
 #Unit scaled version:
