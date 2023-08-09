@@ -49,9 +49,12 @@ python data/openwebtext/prepare.py
 time torchrun --standalone --nproc_per_node=4 train.py config/train_gpt2.py --compile=False --dtype=float16 | tee -a "gpt2_output_log.txt"
 #Did change the config to have wandb turned off and for it to use 4 gpus
 
+
+#Unit scaled version:
 #Trying on the nano GPT model, went through and replaced applicable functions with the unit scaled version
 #Note that the current train code will automatically unit scale the model when training
 #need to go through and adjust the code => set the enabled to false:   scaler = torch.cuda.amp.GradScaler(enabled=False)
+#The unit_model.py in the UnitScaling directory should have the correct code, just name it model.py when running training/inferencing
 
 
 ##Results:
