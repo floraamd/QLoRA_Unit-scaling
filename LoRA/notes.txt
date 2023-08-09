@@ -1,0 +1,26 @@
+#################################
+# Running LoRA
+#################################
+
+#Based on the LoRA github repository: https://github.com/microsoft/LoRA
+#PEFT would use LoRA on pretrained models and only works with specific models
+#I wanted to see if LoRA could be used on the model.py code and be used with the unit scaling library
+
+#The LoRA_model.py is in the LoRA directory, it swaps out the key, query, value projections layer to be a lora layer
+#Currently it also has gradient scaling disabled
+#It should be renamed/imported as model.py to use for inferencing/training
+
+#The train_LoRA.py is also in the LoRA directory, it's updated to have all the layers but the lora layers freezed and to also output the lora model's checkpoint (this set up may need some fixing)
+#This is based on the Quickstart in the LoRA repository
+
+#Running with LoRA
+#sample:
+time python train_LoRA.py config/train_shakespeare_char.py --compile=False --dtype=float16 | tee -a "LoRA_shakespeare_output_log.txt"
+#GPT2:
+time torchrun --standalone --nproc_per_node=2 train_LoRA.py config/train_gpt2.py --compile=False --dtype=float16 | tee -a "LoRA_Unit_gpt2_output_log.txt"
+#this doesn't work just yet
+
+#Note that this is training from scratch, as a result results from running the sample with LoRA is a bunch of nonsense
+# As such future runs should focus on finetuning instead of training. 
+#This should be similar to training, just lower learning rate and starting with some initial weights. 
+#I think some adjustments may need to be made to load in initial weights with LoRA and unit scaled layers
