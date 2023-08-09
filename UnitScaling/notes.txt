@@ -1,0 +1,70 @@
+#########################################
+# Running Unit Scaling Sample
+# Flora Cheng
+# 7/20/23
+#############################################
+
+#There isn't a mention of how this would be ran on a pretrained model directly. All the samples show editing individual layers of the model.
+
+#Running the sample of nanoGPT:
+#There is some problem with running this with rocm, use dockerfile to run with --compile=False: 
+#https://github.com/ROCmSoftwarePlatform/DeepLearningModels/blob/main/docker/pt_nano_gpt.ubuntu.amd.Dockerfile
+
+#run using:
+docker run -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri --group-add video --ipc=host --shm-size 8G 'nano_gpt'
+
+git clone https://github.com/karpathy/nanoGPT.git
+cd nanoGPT
+pip install torch numpy transformers datasets tiktoken wandb tqdm
+
+
+#Library: 
+pip install git+https://github.com/graphcore-research/unit-scaling.git
+
+#Looking at their library, it seems that the applicable layers of the model are replaced with the unit scaled ones
+
+
+#To get gpus to separate:
+export HIP_VISIBLE_DEVICES=0
+
+#Running sample
+python data/shakespeare_char/prepare.py
+#training
+python train.py config/train_shakespeare_char.py --compile=False 
+time python train.py config/train_shakespeare_char.py --compile=False | tee -a "shakespeare_output_log.txt"
+
+#inferencing
+python sample.py --out_dir=out-shakespeare-char
+
+
+#Notes on running the shakespeare training sample
+#Running with gradient scaling: loss .8
+#Running without gradient and unit scaling: loss .8
+#Running with unit scaling: loss 2.1
+
+
+#reproducing GPT-2
+python data/openwebtext/prepare.py
+#set nproc_per_node to 4 as I am using 4 gpus - check using rocm-smi
+time torchrun --standalone --nproc_per_node=4 train.py config/train_gpt2.py --compile=False --dtype=float16 | tee -a "gpt2_output_log.txt"
+#Did change the config to have wandb turned off and for it to use 4 gpus
+
+#Trying on the nano GPT model, went through and replaced applicable functions with the unit scaled version
+#Note that the current train code will automatically unit scale the model when training
+#need to go through and adjust the code => set the enabled to false:   scaler = torch.cuda.amp.GradScaler(enabled=False)
+
+
+##Results:
+No grad, no unit: reached nan loss in around 
+real    1836m58.770s
+user    3698m38.125s
+sys     24m4.620s
+
+No grad: reached nan loss
+real    1599m43.673s
+user    3219m21.881s
+sys     20m28.192s
+
+#Running with LoRA
+time torchrun --standalone --nproc_per_node=2 train_LoRA.py config/train_gpt2.py --compile=False --dtype=float16 | tee -a "LoRA_Unit_gpt2_output_log.txt"
+#This doesn't work just yet
