@@ -20,6 +20,9 @@ time python train_LoRA.py config/train_shakespeare_char.py --compile=False --dty
 time torchrun --standalone --nproc_per_node=2 train_LoRA.py config/train_gpt2.py --compile=False --dtype=float16 | tee -a "LoRA_Unit_gpt2_output_log.txt"
 #this doesn't work just yet
 
+#Running inferencing should be the same, the inference code is also changed (probably incorrectly, based on the LoRA repository)
+# sample_LoRA.py is in the LoRA directory
+
 #Note that this is training from scratch, as a result results from running the sample with LoRA is a bunch of nonsense
 # As such future runs should focus on finetuning instead of training. 
 #This should be similar to training, just lower learning rate and starting with some initial weights. 
