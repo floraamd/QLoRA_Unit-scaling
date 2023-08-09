@@ -1,0 +1,106 @@
+#########################################
+# Running QLoRA sample
+# Flora Cheng
+# 7/13/23
+#############################################
+
+To run qlora code:
+need to change the bitsandbytes code to work with hip rather than cuda
+
+Used the following from Zhaoyi's github: 
+git clone https://github.com/Lzy17/bitsandbytes-rocm
+cd bitsandbytes-rocm
+
+make hip
+python setup.py install
+
+
+How to get gradio to work:
+ - make sure that pip is up date
+ - upgrade the gradio version (using the upgraded pip)
+
+
+Then running the rest of the code as instructed
+Code of QLoRA demo: https://colab.research.google.com/drive/17XEqL1JcmVWjHkT-WczdYkJlNINacwG7?usp=sharing
+QLoRA integration: https://colab.research.google.com/drive/1ge2F1QSK8Q7h0hn3YKuBCOAS0bK8E0wf?usp=sharing
+QLoRA finetuning: https://colab.research.google.com/drive/1VoYNfYDKcKRQRor98Zbf2-9VQTtGJ24k?usp=sharing
+
+It seems that QLoRA is a slightly modified LoRA, where the model is also quantized
+
+If unit scaling isnt that hard to implement, maybe combine both? idk
+
+#Running the Training:
+#Got an error when it gets to the training part:
+/var/lib/jenkins/pytorch/aten/src/ATen/native/hip/Indexing.hip:1148: indexSelectLargeIndex: Device-side assertion `srcIndex < srcSelectDimSize' failed.
+:0:rocdevice.cpp            :2776: 68619504376 us: 3266 : [tid:0x7f7434108700] Callback: Queue 0x7f6f4f800000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An "HSAIL operation resulted in a hardware exception." code: 0x1016
+
+#Google says its an out of bounds problem
+#Printing the model:
+PeftModelForCausalLM(
+  (base_model): LoraModel(
+    (model): GPTNeoXForCausalLM(
+      (gpt_neox): GPTNeoXModel(
+        (embed_in): Embedding(50432, 6144)
+        (emb_dropout): Dropout(p=0.0, inplace=False)
+        (layers): ModuleList(
+          (0-43): 44 x GPTNeoXLayer(
+            (input_layernorm): LayerNorm((6144,), eps=1e-05, elementwise_affine=True)
+            (post_attention_layernorm): LayerNorm((6144,), eps=1e-05, elementwise_affine=True)
+            (post_attention_dropout): Dropout(p=0.0, inplace=False)
+            (post_mlp_dropout): Dropout(p=0.0, inplace=False)
+            (attention): GPTNeoXAttention(
+              (rotary_emb): GPTNeoXRotaryEmbedding()
+              (query_key_value): Linear4bit(
+                in_features=6144, out_features=18432, bias=True
+                (lora_dropout): ModuleDict(
+                  (default): Dropout(p=0.05, inplace=False)
+                )
+                (lora_A): ModuleDict(
+                  (default): Linear(in_features=6144, out_features=8, bias=False)
+                )
+                (lora_B): ModuleDict(
+                  (default): Linear(in_features=8, out_features=18432, bias=False)
+                )
+                (lora_embedding_A): ParameterDict()
+                (lora_embedding_B): ParameterDict()
+              )
+              (dense): Linear4bit(in_features=6144, out_features=6144, bias=True)
+              (attention_dropout): Dropout(p=0.0, inplace=False)
+            )
+            (mlp): GPTNeoXMLP(
+              (dense_h_to_4h): Linear4bit(in_features=6144, out_features=24576, bias=True)
+              (dense_4h_to_h): Linear4bit(in_features=24576, out_features=6144, bias=True)
+              (act): FastGELUActivation()
+            )
+          )
+        )
+        (final_layer_norm): LayerNorm((6144,), eps=1e-05, elementwise_affine=True)
+      )
+      (embed_out): Linear(in_features=6144, out_features=50432, bias=False)
+    )
+  )
+)
+
+
+#Running the Inference
+
+#Also got an out of bounds problem 
+#This is when running the larger model
+/var/lib/jenkins/pytorch/aten/src/ATen/native/hip/ScatterGatherKernel.hip:147: operator(): Device-side assertion `idx_dim >= 0 && idx_dim < index_size && "index out of bounds"' failed.
+:0:rocdevice.cpp            :2776: 86169876965 us: 26306: [tid:0x7f2a720d6700] Callback: Queue 0x7f2482e00000 aborting with error : HSA_STATUS_ERROR_EXCEPTION: An HSAIL operation resulted in a hardware exception. code: 0x1016
+
+
+
+#My guess: The models are currently too big
+ - this guess is wrong, the vram was fine when the model failed
+
+
+ Got another error message for inference:
+ Memory access fault by GPU node-3 (Agent handle: 0x8601bf0) on address 0x7ef05bfd2000. Reason: Page not present or supervisor privilege.                                                                                                                              │
+Aborted (core dumped)
+
+Running it normally also failed (ran by switching the id's and taking out the load in 4-bits)
+
+Swapping out the model for training also gives the same error
+
+Ok so I somehow fixed the inference code by having device_map="auto" commented out, for some reason
